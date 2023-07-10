@@ -5,11 +5,6 @@
 
 using namespace cocos2d;
 
-//parse string to array of bytes: example
-// "8A 81 C5 01 00 00" to { 0x8A, 0x81, 0xC5, 0x01, 0x00, 0x00 }
-
-//allow for the user to call with a template such as uint8_t, uintptr etc
-
 void RenderMain() {
 
 	const auto show = true;
@@ -158,7 +153,77 @@ void RenderMain() {
 
 		static const char* currentItem = "Player Xpos";
 
-		initVariableSystem(currentItem, items);
+
+		//variable system stuff
+		if (ImGui::BeginCombo("##combo", currentItem))
+		{
+			for (int n = 0; n < IM_ARRAYSIZE(items); n++)
+			{
+				bool is_selected = (currentItem == items[n]);
+				if (ImGui::Selectable(items[n], is_selected)) {
+					currentItem = items[n];
+				}
+				if (is_selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+
+			ImGui::EndCombo();
+		}
+
+
+
+		if (ImGui::InputText("", varBuffer, 2048)) {
+
+		}
+
+
+
+		varType = jsonData["Variable"][std::string(currentItem)]["Type"];
+
+		offs.resize(parseBytes<uintptr_t>(jsonData["Variable"][std::string(currentItem)]["Offsets"]).size());
+		offs = parseBytes<uintptr_t>(jsonData["Variable"][std::string(currentItem)]["Offsets"]);
+
+		ptrBase = base + hexStringToInt(jsonData["Variable"][std::string(currentItem)]["Addr"]);
+
+
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Apply")) {
+			std::string str = varBuffer;
+
+			if (varType == "Float") {
+				if (str.find_first_not_of(".") != std::string::npos) {
+					str.append(".0");
+				}
+				float b = std::stof(str);
+				int addy = amemory::load_pointer(ptrBase, offs);
+				amemory::write_protect<float>(addy, b);
+
+			}
+			else if (varType == "Int") {
+				std::string str = varBuffer;
+
+				int b = std::stoi(str);
+				int addy = amemory::load_pointer(ptrBase, offs);
+				amemory::write_protect<int>(addy, b);
+			}
+
+		}
+		if (varType == "Float") {
+			int addy = amemory::load_pointer(ptrBase, offs);
+			valF = amemory::read_protect<float>(addy);
+
+			ImGui::Text("Current: %g", valF);
+		}
+
+		if (varType == "Int") {
+			int addy = amemory::load_pointer(ptrBase, offs);
+			valI = amemory::read_protect<int>(addy);
+
+			ImGui::Text("Current: %d", valI);
+		}
 
 
 		ImGui::End();
@@ -212,4 +277,3 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     }
     return TRUE;
 }
-
